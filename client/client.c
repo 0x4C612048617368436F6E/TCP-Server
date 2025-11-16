@@ -1,46 +1,89 @@
-#include"./client.h"
-void client(){
-    int clientSocket = socket(AF_INET,SOCK_STREAM,0);
-    if((serverSocketFileDescriptor < 0)){
-        perror(strerror(errno));
+#include"client.h"
+void client(void) {
+    int sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock < 0) { 
+        perror("socket"); 
+        return; 
+    }
+
+    struct sockaddr_in srv = {0};
+    srv.sin_family = AF_INET;
+    srv.sin_port = htons(PORT);
+    if (inet_pton(AF_INET, "192.168.236.112", &srv.sin_addr) != 1) {
+        perror("inet_pton");
+        close(sock);
         return;
     }
-    //get string
-    char* userString = userInput();
-    printf("%s\n",userString);
 
-    //connect to server
-    
+    if (connect(sock, (struct sockaddr*)&srv, sizeof(srv)) == -1) {
+        perror("connect");
+        close(sock);
+        return;
+    }
 
+    while (CLIENTINPUT) {
+        char *msg = userInput();
+        if (!msg) break;
+        if (strcmp(msg, "exit") == 0) { 
+            free(msg); 
+            break; 
+        }
 
-    free(userString);
+        size_t payload_len = strlen(msg) + 1; // include '\0' if you want
+        uint32_t netlen = htonl((uint32_t)payload_len);
+
+        if (send_all(sock, &netlen, sizeof(netlen)) < 0) { 
+            free(msg); 
+            break; 
+        }
+        if (send_all(sock, msg, payload_len) < 0) { 
+            free(msg); 
+            break; 
+        }
+
+        free(msg);
+    }
+
+    close(sock);
+    return;
 }
 
-char* userInput(){
-    char c;
-    size_t sizeOfBuffer = SIZEOFBUFFER;
-    size_t currentSize = 0;
-    char* userInputString = (char *) malloc(sizeof(char) * sizeOfBuffer);
-    if(!userInputString){
-        printf("Unable to allocate buffer");
-        exit(-1);
+char *userInput(void) {
+    size_t cap = SIZEOFBUFFER;
+    size_t len = 0;
+    char *buf = malloc(cap);
+    if (!buf) { 
+        perror("malloc"); 
+        return NULL; 
     }
 
-    while (((c = getchar()) != '\n')){
-        if(currentSize >= sizeOfBuffer){
-            sizeOfBuffer+=SIZEOFBUFFER;
-            //reallocate
-            userInputString = realloc(userInputString,sizeOfBuffer);
-            if(!userInputString){
-                printf("Unable to reallocate buffer");
-                exit(-1);
-            }
+    printf("> ");
+    int c;
+    while ((c = getchar()) != EOF && c != '\n') {
+        if (len + 1 >= cap) {
+            cap += SIZEOFBUFFER;
+            char *tmp = realloc(buf, cap);
+            if (!tmp) { free(buf); return NULL; }
+            buf = tmp;
         }
-        //could also do
-        //*(userInputString+currentSize) = c;
-        userInputString[currentSize] = c;
-        currentSize++;
+        buf[len++] = (char)c;
     }
-    printf("Hello world");
-    return userInputString;
+    buf[len] = '\0';
+    return buf;
+}
+
+
+ssize_t send_all(int sock, const void *buf, size_t len) {
+    const char *p = buf;
+    size_t total = 0;
+    while (total < len) {
+        ssize_t n = send(sock, p + total, len - total, 0);
+        if (n < 0) {
+            perror("send");
+            return -1;
+        }
+        if (n == 0) return total;
+        total += (size_t)n;
+    }
+    return (ssize_t)total;
 }
