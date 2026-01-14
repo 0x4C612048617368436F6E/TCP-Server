@@ -18,6 +18,10 @@
 #define CUSTOM_DEBUG(...) {printf("[ DEBUG ] ");printf(__VA_ARGS__);printf("\n");}
 #endif
 
+#if defined(_WARNING)
+#define CUSTOM_WARNING(...) {printf("[ WARNING ] ");printf(__VA_ARGS__);printf("\n");}
+#endif
+
 #if defined(_ERROR)
 #define CUSTOM_ERROR(...) {printf("[ ERROR ] ");printf(__VA_ARGS__);printf("\n");}
 #endif
@@ -32,7 +36,9 @@
 
 extern void client(void);
 extern char *userInput(void);
-extern size_t send_all(int, const void *, size_t);
+extern ssize_t send_all(int, const void *, size_t);
+//implement Caesar Cipher
+char* caesarCipher(const char*);
 
 #endif
 

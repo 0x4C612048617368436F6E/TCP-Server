@@ -27,7 +27,7 @@
 #endif
 
 extern void server(void);
-extern size_t recv_all(int, void *, size_t);
+extern ssize_t recv_all(int, void *, size_t);
 
 #endif
 
